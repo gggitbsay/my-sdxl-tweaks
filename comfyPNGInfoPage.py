@@ -3,53 +3,51 @@ import json
 from PIL import Image
 import webbrowser
 
-# Use in current directory
+# Directory containing the images
 image_directory = '.'
 html_file_path = os.path.join(image_directory, 'index.html')
 
-# Create the HTML content
+# Start the HTML content
 html_content = '<html><head><title>Image Gallery</title></head><body>'
 html_content += '<h1>Image Gallery</h1>'
 
+# Function to extract and format all metadata
 def extract_and_format_all_metadata(metadata):
     try:
-        # Parse the metadata, which is expected to be in JSON format
         data = json.loads(metadata)
         formatted_metadata = "<ul>"
-
-        # Define the recursive function to format metadata
         def format_metadata(data, prefix=""):
-            nonlocal formatted_metadata  # This line makes formatted_metadata accessible and modifiable within format_metadata
+            nonlocal formatted_metadata
             for key, value in data.items():
                 if isinstance(value, dict):
-                    # Recurse into sub-dictionaries
                     format_metadata(value, prefix=prefix + key + " → ")
                 else:
-                    # Add the key-value pair to the list
                     formatted_metadata += f"<li>{prefix}{key}: {value}</li>"
-
         format_metadata(data)
         formatted_metadata += "</ul>"
         return formatted_metadata
     except json.JSONDecodeError:
         return "<p>Error parsing metadata.</p>"
 
-# Iterate over images in the directory
-for filename in os.listdir(image_directory):
-    if filename.lower().endswith('.png'):
-        image_path = os.path.join(image_directory, filename)
-        image = Image.open(image_path)
+# Sort files by modification time in descending order
+image_files = [f for f in os.listdir(image_directory) if f.lower().endswith('.png')]
+sorted_files = sorted(image_files, key=lambda x: os.path.getmtime(os.path.join(image_directory, x)), reverse=True)
 
-        # Add image to HTML
-        html_content += f'<div><h2>{filename}</h2>'
-        html_content += f'<img src="{filename}" alt="{filename}" style="width:300px;"><br>'
+# Iterate over sorted files
+for filename in sorted_files:
+    image_path = os.path.join(image_directory, filename)
+    image = Image.open(image_path)
 
-        # Extract PNG text chunks as metadata
-        metadata = image.text.get("prompt", "{}")  # Assuming 'prompt' is the key for your metadata
-        formatted_metadata = extract_and_format_all_metadata(metadata)
-        html_content += formatted_metadata
+    # Add image to HTML
+    html_content += f'<div><h2>{filename}</h2>'
+    html_content += f'<img src="{filename}" alt="{filename}" style="width:300px;"><br>'
 
-        html_content += '</div>'
+    # Extract PNG text chunks as metadata
+    metadata = image.text.get("prompt", "{}")
+    formatted_metadata = extract_and_format_all_metadata(metadata)
+    html_content += formatted_metadata
+
+    html_content += '</div>'
 
 # Close the HTML content
 html_content += '</body></html>'
@@ -58,7 +56,7 @@ html_content += '</body></html>'
 with open(html_file_path, 'w', encoding='utf-8') as html_file:
     html_file.write(html_content)
 
-# Automatically open page in the default browser
+# Automatically open the HTML page in the default browser
 webbrowser.open('file://' + os.path.realpath(html_file_path))
 
 print(f'HTML file created and opened at {html_file_path}')
